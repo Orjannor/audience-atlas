@@ -25,6 +25,7 @@ type PlatformName =
 
 type PeriodMode = "weekly" | "daily";
 type BreakdownMode = "generation" | "age";
+type ViewMode = "market" | "generation" | "profile";
 
 type GenerationName = "Gen Alpha" | "Gen Z" | "Millennials" | "Gen X" | "Boomers" | "Silent Gen";
 type AgeGroupName = "12–14" | "15–19" | "20–29" | "30–39" | "40–49" | "50–59" | "60–69" | "70+";
@@ -147,6 +148,9 @@ function kpiCard(title: string, value: string, subtitle: string) {
 }
 
 export default function App() {
+  const [viewMode, setViewMode] = useState<ViewMode>("market");
+  const [selectedGeneration, setSelectedGeneration] = useState<GenerationName>("Gen Z");
+  const [selectedPlatform, setSelectedPlatform] = useState<PlatformName>("Schibsted");
   const [periodMode, setPeriodMode] = useState<PeriodMode>("weekly");
   const [visiblePlatforms, setVisiblePlatforms] = useState<PlatformName[]>(["Schibsted"]);
   const [breakdownMode, setBreakdownMode] = useState<BreakdownMode>("generation");
@@ -175,7 +179,6 @@ export default function App() {
   const lineData = useMemo<SeriesRow[]>(() => {
     const labels = breakdownMode === "generation" ? generationLabels : ageLabels;
     const source = breakdownMode === "generation" ? generationSource : ageSource;
-
     return labels.map((label) => {
       const row: SeriesRow = { label };
       visiblePlatforms.forEach((platform) => {
@@ -185,90 +188,43 @@ export default function App() {
     });
   }, [visiblePlatforms, breakdownMode, generationSource, ageSource]);
 
-  const distributedBars = lineData;
+  const generationComparisonData = useMemo(() => {
+    return platformLabels
+      .map((platform) => ({ name: platform, value: generationSource[platform][selectedGeneration] }))
+      .sort((a, b) => b.value - a.value);
+  }, [generationSource, selectedGeneration]);
+
+  const platformProfileData = useMemo(() => {
+    return generationLabels.map((generation) => ({ name: generation, value: generationSource[selectedPlatform][generation] }));
+  }, [generationSource, selectedPlatform]);
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#071B67",
-        color: "white",
-        fontFamily: "Inter, Arial, sans-serif",
-        padding: 32,
-      }}
-    >
+    <div style={{ minHeight: "100vh", background: "#071B67", color: "white", fontFamily: "Inter, Arial, sans-serif", padding: 32 }}>
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ marginBottom: 24 }}>
-          <div
-            style={{
-              display: "inline-block",
-              background: "rgba(255,255,255,0.1)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 999,
-              padding: "6px 12px",
-              fontSize: 14,
-              marginBottom: 16,
-            }}
-          >
+          <div style={{ display: "inline-block", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 999, padding: "6px 12px", fontSize: 14, marginBottom: 16 }}>
             Audience Atlas
           </div>
           <h1 style={{ margin: 0, fontSize: 42 }}>Audience Atlas Prototype</h1>
-          <p style={{ marginTop: 8, color: "rgba(255,255,255,0.8)" }}>
-            Markedsoversikt med linjediagram og fordelt visning.
-          </p>
+          <p style={{ marginTop: 8, color: "rgba(255,255,255,0.8)" }}>Markedsoversikt, generasjoner og plattformprofil.</p>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 16,
-            marginBottom: 24,
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, marginBottom: 24 }}>
           {kpiCard("Befolkning", population.toLocaleString("nb-NO"), "Total Norge")}
-          {kpiCard(
-            `Schibsted ${periodMode === "weekly" ? "ukentlig" : "daglig"} dekning`,
-            formatPercent(totalSource.Schibsted),
-            "Live testversjon"
-          )}
+          {kpiCard(`Schibsted ${periodMode === "weekly" ? "ukentlig" : "daglig"} dekning`, formatPercent(totalSource.Schibsted), "Live testversjon")}
           {kpiCard("Ledelse blant redaksjonelle", "+19,1 pp", "mot Amedia ukentlig")}
         </div>
 
-        <div
-          style={{
-            background: "rgba(255,255,255,0.96)",
-            color: "#0f172a",
-            borderRadius: 20,
-            padding: 24,
-            marginBottom: 24,
-          }}
-        >
+        <div style={{ background: "rgba(255,255,255,0.96)", color: "#0f172a", borderRadius: 20, padding: 24, marginBottom: 24 }}>
           <h2 style={{ marginTop: 0 }}>Visualisering</h2>
-          <p style={{ color: "#64748b", marginTop: 0 }}>Velg kanaler, periode og visning.</p>
+          <p style={{ color: "#64748b", marginTop: 0 }}>Velg visning, periode og relevante filtre.</p>
 
           <div style={{ marginBottom: 18 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Velg kanaler</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Velg visning</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {platformLabels.map((platform) => {
-                const active = visiblePlatforms.includes(platform);
-                return (
-                  <button
-                    key={platform}
-                    onClick={() => togglePlatform(platform)}
-                    style={{
-                      borderRadius: 999,
-                      padding: "10px 14px",
-                      border: active ? "1px solid #0f172a" : "1px solid #cbd5e1",
-                      background: active ? "#0f172a" : "white",
-                      color: active ? "white" : "#334155",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {platform}
-                  </button>
-                );
-              })}
+              <button onClick={() => setViewMode("market")} style={{ borderRadius: 999, padding: "10px 14px", border: viewMode === "market" ? "1px solid #0f172a" : "1px solid #cbd5e1", background: viewMode === "market" ? "#0f172a" : "white", color: viewMode === "market" ? "white" : "#334155", cursor: "pointer" }}>Markedsutvikling</button>
+              <button onClick={() => setViewMode("generation")} style={{ borderRadius: 999, padding: "10px 14px", border: viewMode === "generation" ? "1px solid #0f172a" : "1px solid #cbd5e1", background: viewMode === "generation" ? "#0f172a" : "white", color: viewMode === "generation" ? "white" : "#334155", cursor: "pointer" }}>Generasjon</button>
+              <button onClick={() => setViewMode("profile")} style={{ borderRadius: 999, padding: "10px 14px", border: viewMode === "profile" ? "1px solid #0f172a" : "1px solid #cbd5e1", background: viewMode === "profile" ? "#0f172a" : "white", color: viewMode === "profile" ? "white" : "#334155", cursor: "pointer" }}>Plattformprofil</button>
             </div>
           </div>
 
@@ -276,164 +232,151 @@ export default function App() {
             <div>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Periode</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => setPeriodMode("daily")}
-                  style={{
-                    borderRadius: 999,
-                    padding: "10px 14px",
-                    border: periodMode === "daily" ? "1px solid #0f172a" : "1px solid #cbd5e1",
-                    background: periodMode === "daily" ? "#0f172a" : "white",
-                    color: periodMode === "daily" ? "white" : "#334155",
-                    cursor: "pointer",
-                  }}
-                >
-                  Dag
-                </button>
-                <button
-                  onClick={() => setPeriodMode("weekly")}
-                  style={{
-                    borderRadius: 999,
-                    padding: "10px 14px",
-                    border: periodMode === "weekly" ? "1px solid #0f172a" : "1px solid #cbd5e1",
-                    background: periodMode === "weekly" ? "#0f172a" : "white",
-                    color: periodMode === "weekly" ? "white" : "#334155",
-                    cursor: "pointer",
-                  }}
-                >
-                  Uke
-                </button>
+                <button onClick={() => setPeriodMode("daily")} style={{ borderRadius: 999, padding: "10px 14px", border: periodMode === "daily" ? "1px solid #0f172a" : "1px solid #cbd5e1", background: periodMode === "daily" ? "#0f172a" : "white", color: periodMode === "daily" ? "white" : "#334155", cursor: "pointer" }}>Dag</button>
+                <button onClick={() => setPeriodMode("weekly")} style={{ borderRadius: 999, padding: "10px 14px", border: periodMode === "weekly" ? "1px solid #0f172a" : "1px solid #cbd5e1", background: periodMode === "weekly" ? "#0f172a" : "white", color: periodMode === "weekly" ? "white" : "#334155", cursor: "pointer" }}>Uke</button>
               </div>
             </div>
 
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Bryt ned på</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => setBreakdownMode("generation")}
-                  style={{
-                    borderRadius: 999,
-                    padding: "10px 14px",
-                    border: breakdownMode === "generation" ? "1px solid #0f172a" : "1px solid #cbd5e1",
-                    background: breakdownMode === "generation" ? "#0f172a" : "white",
-                    color: breakdownMode === "generation" ? "white" : "#334155",
-                    cursor: "pointer",
-                  }}
-                >
-                  Generasjon
-                </button>
-                <button
-                  onClick={() => setBreakdownMode("age")}
-                  style={{
-                    borderRadius: 999,
-                    padding: "10px 14px",
-                    border: breakdownMode === "age" ? "1px solid #0f172a" : "1px solid #cbd5e1",
-                    background: breakdownMode === "age" ? "#0f172a" : "white",
-                    color: breakdownMode === "age" ? "white" : "#334155",
-                    cursor: "pointer",
-                  }}
-                >
-                  Alder
-                </button>
+            {viewMode === "market" && (
+              <>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Bryt ned på</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => setBreakdownMode("generation")} style={{ borderRadius: 999, padding: "10px 14px", border: breakdownMode === "generation" ? "1px solid #0f172a" : "1px solid #cbd5e1", background: breakdownMode === "generation" ? "#0f172a" : "white", color: breakdownMode === "generation" ? "white" : "#334155", cursor: "pointer" }}>Generasjon</button>
+                    <button onClick={() => setBreakdownMode("age")} style={{ borderRadius: 999, padding: "10px 14px", border: breakdownMode === "age" ? "1px solid #0f172a" : "1px solid #cbd5e1", background: breakdownMode === "age" ? "#0f172a" : "white", color: breakdownMode === "age" ? "white" : "#334155", cursor: "pointer" }}>Alder</button>
+                  </div>
+                </div>
+                <div style={{ minWidth: 280, flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Velg kanaler</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {platformLabels.map((platform) => {
+                      const active = visiblePlatforms.includes(platform);
+                      return (
+                        <button key={platform} onClick={() => togglePlatform(platform)} style={{ borderRadius: 999, padding: "10px 14px", border: active ? "1px solid #0f172a" : "1px solid #cbd5e1", background: active ? "#0f172a" : "white", color: active ? "white" : "#334155", cursor: "pointer" }}>{platform}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {viewMode === "generation" && (
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Velg generasjon</div>
+                <select value={selectedGeneration} onChange={(e) => setSelectedGeneration(e.target.value as GenerationName)} style={{ padding: "10px 14px", borderRadius: 12, border: "1px solid #cbd5e1", minWidth: 180 }}>
+                  {generationLabels.map((generation) => <option key={generation} value={generation}>{generation}</option>)}
+                </select>
+              </div>
+            )}
+
+            {viewMode === "profile" && (
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Velg plattform</div>
+                <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as PlatformName)} style={{ padding: "10px 14px", borderRadius: 12, border: "1px solid #cbd5e1", minWidth: 180 }}>
+                  {platformLabels.map((platform) => <option key={platform} value={platform}>{platform}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {viewMode === "market" && (
+          <>
+            <div style={{ background: "#0B237A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 24, marginBottom: 24 }}>
+              <h2 style={{ marginTop: 0, marginBottom: 8 }}>Markedsutvikling</h2>
+              <p style={{ marginTop: 0, color: "rgba(255,255,255,0.8)" }}>Se hvordan plattformene utvikler seg på tvers av {breakdownMode === "generation" ? "generasjoner" : "aldersgrupper"}.</p>
+              <div style={{ width: "100%", height: 420 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={lineData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                    <CartesianGrid stroke="rgba(255,255,255,0.15)" strokeDasharray="3 3" />
+                    <XAxis dataKey="label" tick={{ fill: "white" }} />
+                    <YAxis domain={[0, 100]} tick={{ fill: "white" }} tickFormatter={(v) => `${Math.round(Number(v))}%`} />
+                    <Tooltip formatter={(v: number) => formatPercent(v)} />
+                    <Legend />
+                    {visiblePlatforms.map((platform) => (
+                      <Line key={platform} type="monotone" dataKey={platform} stroke={colors[platform]} strokeWidth={platform === "Schibsted" ? 5 : 3} strokeDasharray={platform === "Meta" ? "6 6" : "0"} dot={{ r: 4 }} />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div
-          style={{
-            background: "#0B237A",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 20,
-            padding: 24,
-            marginBottom: 24,
-          }}
-        >
-          <h2 style={{ marginTop: 0, marginBottom: 8 }}>Markedsutvikling</h2>
-          <p style={{ marginTop: 0, color: "rgba(255,255,255,0.8)" }}>
-            Se hvordan plattformene utvikler seg på tvers av {breakdownMode === "generation" ? "generasjoner" : "aldersgrupper"}.
-          </p>
-          <div style={{ width: "100%", height: 420 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={lineData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
-                <CartesianGrid stroke="rgba(255,255,255,0.15)" strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fill: "white" }} />
-                <YAxis domain={[0, 100]} tick={{ fill: "white" }} tickFormatter={(v) => `${Math.round(Number(v))}%`} />
-                <Tooltip formatter={(v: number) => formatPercent(v)} />
-                <Legend />
-                {visiblePlatforms.map((platform) => (
-                  <Line
-                    key={platform}
-                    type="monotone"
-                    dataKey={platform}
-                    stroke={colors[platform]}
-                    strokeWidth={platform === "Schibsted" ? 5 : 3}
-                    strokeDasharray={platform === "Meta" ? "6 6" : "0"}
-                    dot={{ r: 4 }}
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 24 }}>
+              <div style={{ background: "#0B237A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 24 }}>
+                <h2 style={{ marginTop: 0, marginBottom: 8 }}>Markedsoversikt total</h2>
+                <p style={{ marginTop: 0, color: "rgba(255,255,255,0.8)" }}>{periodMode === "weekly" ? "Ukentlig" : "Daglig"} total dekning per plattform.</p>
+                <div style={{ width: "100%", height: 420 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={marketData} layout="vertical" margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
+                      <CartesianGrid stroke="rgba(255,255,255,0.15)" strokeDasharray="3 3" />
+                      <XAxis type="number" domain={[0, 100]} tick={{ fill: "white" }} tickFormatter={(v) => `${Math.round(Number(v))}%`} />
+                      <YAxis type="category" dataKey="name" tick={{ fill: "white" }} width={100} />
+                      <Tooltip formatter={(v: number) => formatPercent(v)} />
+                      <Bar dataKey="value" radius={[0, 10, 10, 0]}>
+                        {marketData.map((entry) => <Cell key={entry.name} fill={colors[entry.name as PlatformName]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 24 }}>
-          <div
-            style={{
-              background: "#0B237A",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 20,
-              padding: 24,
-            }}
-          >
-            <h2 style={{ marginTop: 0, marginBottom: 8 }}>Markedsoversikt total</h2>
-            <p style={{ marginTop: 0, color: "rgba(255,255,255,0.8)" }}>
-              {periodMode === "weekly" ? "Ukentlig" : "Daglig"} total dekning per plattform.
-            </p>
-            <div style={{ width: "100%", height: 420 }}>
+              <div style={{ background: "#0B237A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 24 }}>
+                <h2 style={{ marginTop: 0, marginBottom: 8 }}>Markedsoversikt fordelt</h2>
+                <p style={{ marginTop: 0, color: "rgba(255,255,255,0.8)" }}>Fordelt på {breakdownMode === "generation" ? "generasjoner" : "aldersgrupper"}.</p>
+                <div style={{ width: "100%", height: 420 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={lineData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                      <CartesianGrid stroke="rgba(255,255,255,0.15)" strokeDasharray="3 3" />
+                      <XAxis dataKey="label" tick={{ fill: "white" }} />
+                      <YAxis domain={[0, 100]} tick={{ fill: "white" }} tickFormatter={(v) => `${Math.round(Number(v))}%`} />
+                      <Tooltip formatter={(v: number) => formatPercent(v)} />
+                      <Legend />
+                      {visiblePlatforms.map((platform) => <Bar key={platform} dataKey={platform} fill={colors[platform]} radius={[6, 6, 0, 0]} />)}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {viewMode === "generation" && (
+          <div style={{ background: "#0B237A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 24, marginBottom: 24 }}>
+            <h2 style={{ marginTop: 0, marginBottom: 8 }}>Generasjon</h2>
+            <p style={{ marginTop: 0, color: "rgba(255,255,255,0.8)" }}>Se alle kanalenes dekning innenfor valgt generasjon.</p>
+            <div style={{ width: "100%", height: 480 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={marketData} layout="vertical" margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
+                <BarChart data={generationComparisonData} layout="vertical" margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
                   <CartesianGrid stroke="rgba(255,255,255,0.15)" strokeDasharray="3 3" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fill: "white" }} tickFormatter={(v) => `${Math.round(Number(v))}%`} />
                   <YAxis type="category" dataKey="name" tick={{ fill: "white" }} width={100} />
                   <Tooltip formatter={(v: number) => formatPercent(v)} />
                   <Bar dataKey="value" radius={[0, 10, 10, 0]}>
-                    {marketData.map((entry) => (
-                      <Cell key={entry.name} fill={colors[entry.name as PlatformName]} />
-                    ))}
+                    {generationComparisonData.map((entry) => <Cell key={entry.name} fill={colors[entry.name as PlatformName]} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
+        )}
 
-          <div
-            style={{
-              background: "#0B237A",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 20,
-              padding: 24,
-            }}
-          >
-            <h2 style={{ marginTop: 0, marginBottom: 8 }}>Markedsoversikt fordelt</h2>
-            <p style={{ marginTop: 0, color: "rgba(255,255,255,0.8)" }}>
-              Fordelt på {breakdownMode === "generation" ? "generasjoner" : "aldersgrupper"}.
-            </p>
-            <div style={{ width: "100%", height: 420 }}>
+        {viewMode === "profile" && (
+          <div style={{ background: "#0B237A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 24, marginBottom: 24 }}>
+            <h2 style={{ marginTop: 0, marginBottom: 8 }}>Plattformprofil</h2>
+            <p style={{ marginTop: 0, color: "rgba(255,255,255,0.8)" }}>Generasjoners dekning innenfor valgt plattform.</p>
+            <div style={{ width: "100%", height: 480 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={distributedBars} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                <BarChart data={platformProfileData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
                   <CartesianGrid stroke="rgba(255,255,255,0.15)" strokeDasharray="3 3" />
-                  <XAxis dataKey="label" tick={{ fill: "white" }} />
+                  <XAxis dataKey="name" tick={{ fill: "white" }} />
                   <YAxis domain={[0, 100]} tick={{ fill: "white" }} tickFormatter={(v) => `${Math.round(Number(v))}%`} />
                   <Tooltip formatter={(v: number) => formatPercent(v)} />
-                  <Legend />
-                  {visiblePlatforms.map((platform) => (
-                    <Bar key={platform} dataKey={platform} fill={colors[platform]} radius={[6, 6, 0, 0]} />
-                  ))}
+                  <Bar dataKey="value" radius={[10, 10, 0, 0]} fill={colors[selectedPlatform]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
